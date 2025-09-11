@@ -1,0 +1,31 @@
+# Terraform-specific files
+.terraform/
+*.tfstate
+*.tfstate.backup
+# *.tfvars # I'm using terraform.tfvars for non-sensitive env specific values
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Local or environment-specific Terraform files
+.terraformrc
+terraform.rc
+.terraform.lock.hcl
+
+# Ignore plan output files
+*.tfplan
+
+# Ignore generated module files (if any are present)
+*.zip
+*.tar.gz
+
+# Ignore sensitive credential and configuration files
+secrets.auto.tfvars
+*.auto.tfvars
+*.auto.tfvars.json
+
+# Optional: Ignore log and debug files
+*.log
+*.log.json

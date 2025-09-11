@@ -1,0 +1,81 @@
+name: Build Lambda Zips
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'lambdas/**'
+      - '!lambdas/README.md'
+  workflow_dispatch:
+
+
+jobs:
+  build-lambdas:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build Lambda packages
+        run: |
+          # Create the distribution directory at the project root.
+          mkdir -p dist
+
+          # Loop through each directory in the 'lambdas' folder.
+          for dir in lambdas/*/ ; do
+            name=$(basename "$dir")
+            echo "--- Packaging Lambda: ${name} ---"
+            cd "$dir"
+            mkdir -p package
+
+            # If a requirements.txt file exists, install dependencies into the package directory.
+            if [ -f requirements.txt ]; then
+              pip install -r requirements.txt -t package
+            fi
+
+            # Copy all Python source files into the package directory.
+            cp *.py package/
+            cd package
+
+            # Create the zip file, placing it in the 'dist' directory at the project root.
+            zip -r "../../../dist/${name}.zip" .
+
+            cd ../../..
+          done
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: lambda-zips
+          path: dist/*.zip
+
+# This is an alternative workflow that uploads the zips to S3 instead of as artifacts.
+# We need to work out how to securely manage the AWS credentials first though.
+#  build-lambdas:
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v4
+#
+#      - name: Set up Python
+#        uses: actions/setup-python@v5
+#        with:
+#          python-version: '3.12'
+#
+#      - name: Package each Lambda
+#        run: |
+#          for d in lambdas/*/ ; do
+#            (cd "$d" && zip -r "../../dist/$(basename $d).zip" .)
+#          done
+#
+#      - name: Upload to S3
+#        run: |
+#          aws s3 cp dist/ s3://my-lambda-zips/ --recursive
+#        env:
+#          AWS_ACCESS_KEY_ID: $#{{ secrets.AWS_ACCESS_KEY_ID }}
+#          AWS_SECRET_ACCESS_KEY: $#{{ secrets.AWS_SECRET_ACCESS_KEY }}

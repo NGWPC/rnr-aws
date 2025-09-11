@@ -20,15 +20,15 @@ Security: IAM Roles aim to provide least-privilege permissions, and Secrets Mana
 
 To integrate the real application code, one would need to review and update the following areas.
 
-- [ ] Lambda Functions
+- [X] Lambda Functions
 
-    The placeholder Lambda code is located in lambdas/producer/producer_lambda.py and lambdas/postprocess/post_process_lambda.py.
+    The placeholder Lambda code is located in lambdas/producer/producer_lambda.py
 
     Action: Replace the contents of these files with your production-ready Python code.
 
     Action: Update the corresponding requirements.txt file in each Lambda's directory with any new Python dependencies.
 
-- [ ] ECS Worker Task
+- [X] ECS Worker Task
 
     The placeholder ECS worker code is located in ecs/worker/worker.py.
 

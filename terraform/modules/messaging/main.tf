@@ -29,15 +29,16 @@ resource "aws_secretsmanager_secret_version" "rabbitmq" {
 }
 
 resource "aws_mq_broker" "rabbitmq" {
-  broker_name        = "${var.app_name}-${var.environment}-mq"
-  engine_type        = "RabbitMQ"
-  engine_version     = "3.11.28"
-  host_instance_type = "mq.t3.micro"
-  deployment_mode    = "SINGLE_INSTANCE" # Good for dev/test. Consider "CLUSTER_MULTI_AZ" for OE/PROD?
-
+  broker_name                 = "${var.app_name}-${var.environment}-mq"
+  engine_type                 = "RabbitMQ"
+  engine_version              = "3.13"
+  auto_minor_version_upgrade  = true
+  host_instance_type          = "mq.t3.micro"
+  deployment_mode             = "SINGLE_INSTANCE" # Good for dev/test. Consider "CLUSTER_MULTI_AZ" for OE/PROD?
+  # For SINGLE_INSTANCE mode, we must provide one subnet.
+  # We'll take the first subnet from the provided list.
+  subnet_ids      = [var.private_subnet_ids[0]]
   security_groups = var.rabbitmq_security_group_ids
-  subnet_ids      = var.private_subnet_ids
-
   publicly_accessible = false
 
   user {

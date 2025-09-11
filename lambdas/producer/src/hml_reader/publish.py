@@ -1,9 +1,8 @@
-import os
-import json
+"""A file to support reading/managing JSON-LD formatted data"""
 from datetime import datetime
+import json
 from typing import Any
 
-import aioboto3
 import aio_pika
 import httpx
 import redis
@@ -15,23 +14,9 @@ import xmltodict
 from hml_reader.schemas.weather import HML
 from hml_reader.settings import Settings
 
+settings = Settings()
 
-async def get_rabbitmq_creds():
-    secret_arn = os.getenv("RABBITMQ_SECRET_ARN")
-    rabbit_mq_endpoint = os.getenv("RABBITMQ_ENDPOINT")
-    region = os.getenv("AWS_REGION", "us-east-1")
-
-    session = aioboto3.Session()
-    async with session.client("secretsmanager", region_name=region) as client: # type: ignore
-        secret_value = await client.get_secret_value(SecretId=secret_arn)
-        secret = json.loads(secret_value["SecretString"])
-        return secret["username"], secret["password"], rabbit_mq_endpoint
-
-
-async def get_settings():
-    return Settings()
-
-def fetch_weather_products() -> list[Any]:
+def fetch_weather_products(headers) -> list[Any]:
     url = "https://api.weather.gov/products"
     headers = {
         'Accept': 'application/ld+json',
@@ -70,7 +55,8 @@ def fetch_weather_products() -> list[Any]:
         else:
             raise httpx.HTTPError(f"Error fetching data: {response.status_code}")
 
-async def publish(channel: aio_pika.channel, hml: HML, settings: Settings) -> None:
+
+async def publish(channel: aio_pika.channel, hml: HML) -> None:
     if not channel:
         raise RuntimeError(
             "Message could not be sent as there is no RabbitMQ Connection"
@@ -87,16 +73,11 @@ async def publish(channel: aio_pika.channel, hml: HML, settings: Settings) -> No
             raise e("Message rejected")
                 
 
-async def lambda_handler(event, context):
-    print("Producer Lambda triggered")
-
-    user, pwd, rabbit_mq_endpoint = await get_rabbitmq_creds()
-    
+async def fetch_data() -> None:
     connection = await aio_pika.connect_robust(
-        f"amqp://{user}:{pwd}@{rabbit_mq_endpoint}/",
+        settings.aio_pika_url,
         heartbeat=30
     )
-    settings = await get_settings()
 
     async with connection:
         channel = await connection.channel(publisher_confirms=False)
@@ -105,7 +86,11 @@ async def lambda_handler(event, context):
             durable=True
         )
         print("Successfully connected to RabbitMQ")
-        hml_data = fetch_weather_products()
+        headers = {
+            'Accept': 'application/ld+json',
+            'User-Agent': '(water.noaa.gov, user@rtx.com)'
+        }
+        hml_data = fetch_weather_products(headers)
         try:
             r = redis.Redis(
                 host=settings.redis_url,
@@ -117,9 +102,9 @@ async def lambda_handler(event, context):
                 hml_id = hml["id"]
                 if r.get(hml_id) is None:
                     hml_obj = HML(**hml)
-                    await publish(channel, hml_obj, settings)
+                    await publish(channel, hml_obj)
                     r.set(hml_id, hml_obj.json())
                     r.expire(hml_id, 604800)  # exires after a week
         except redis.exceptions.ConnectionError as e:
             raise e("Cannot run Redis service") 
-    return {"status": "ok"}
+        

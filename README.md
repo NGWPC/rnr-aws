@@ -20,7 +20,7 @@ Security: IAM Roles aim to provide least-privilege permissions, and Secrets Mana
 
 To integrate the real application code, one would need to review and update the following areas.
 
-1. Lambda Functions
+- [ ] Lambda Functions
 
     The placeholder Lambda code is located in lambdas/producer/producer_lambda.py and lambdas/postprocess/post_process_lambda.py.
 
@@ -28,19 +28,19 @@ To integrate the real application code, one would need to review and update the 
 
     Action: Update the corresponding requirements.txt file in each Lambda's directory with any new Python dependencies.
 
-2. ECS Worker Task
+- [ ] ECS Worker Task
 
     The placeholder ECS worker code is located in ecs/worker/worker.py.
 
     Action: Replace this with the core data processing logic, image, ETC.
 
-3. IAM Permissions
+- [ ] IAM Permissions
 
     The current IAM roles have basic permissions for S3 access, VPC networking, and reading the RabbitMQ secret. The role definitions are in terraform/modules/iam_roles/main.tf.
 
     Action: Identify any other required AWS services, and provide the list of required permissions to the infrastructure team for IAM policy updates.
 
-4. Environment Variables & Secrets
+- [ ] Environment Variables & Secrets
 
     The infrastructure passes a basic example set of environment variables (bucket names, RabbitMQ endpoint, ETC.) to the compute services. These are defined in terraform/modules/app/main.tf.
 

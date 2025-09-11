@@ -29,3 +29,6 @@ secrets.auto.tfvars
 # Optional: Ignore log and debug files
 *.log
 *.log.json
+
+# ignore extra gpkg files
+*.gpkg

@@ -139,6 +139,7 @@ resource "aws_scheduler_schedule" "producer_lambda_trigger" {
 }
 
 resource "aws_s3_bucket_notification" "post_process_trigger" {
+  depends_on = [aws_lambda_permission.allow_s3_to_call_lambda]
   bucket = module.data_stores.output_data_bucket_name
 
   lambda_function {

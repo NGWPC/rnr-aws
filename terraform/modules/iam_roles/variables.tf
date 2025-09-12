@@ -18,17 +18,12 @@ variable "aws_account_id" {
   type        = string
 }
 
-variable "input_data_bucket_arn" {
-  description = "The ARN of the S3 bucket for GPKG domain data, used for ECS task permissions."
-  type        = string
-}
-
-variable "output_data_bucket_arn" {
-  description = "The ARN of the S3 bucket for output data, used for ECS task permissions."
-  type        = string
-}
-
 variable "rabbitmq_secret_arn" {
   description = "The ARN of the RabbitMQ credentials secret in Secrets Manager."
+  type        = string
+}
+
+variable "app_bucket_name" {
+  description = "The name of the S3 bucket used by the application for input and output data."
   type        = string
 }

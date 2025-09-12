@@ -3,6 +3,13 @@
 # -----------------------------------------------------------------------------
 provider "aws" {
   region = var.aws_region
+
+  default_tags {
+    tags = {
+      Team        = var.team_name
+      Environment = var.environment
+    }
+  }
 }
 
 # Data sources to get existing network infrastructure details
@@ -31,15 +38,12 @@ data "aws_subnets" "private" {
 module "iam_roles" {
   source = "./modules/iam_roles"
 
-  app_name       = var.app_name
-  environment    = var.environment
-  aws_region     = var.aws_region
-  aws_account_id = data.aws_caller_identity.current.account_id
-
+  app_name            = var.app_name
+  environment         = var.environment
+  aws_region          = var.aws_region
+  aws_account_id      = data.aws_caller_identity.current.account_id
   rabbitmq_secret_arn = module.messaging.rabbitmq_secret_arn
-
-  input_data_bucket_arn  = module.data_stores.gpkg_data_bucket_arn
-  output_data_bucket_arn = module.data_stores.output_data_bucket_arn
+  app_bucket_name     = var.app_bucket_name
 }
 
 module "security_groups" {
@@ -83,10 +87,11 @@ module "application" {
   aws_region  = var.aws_region
 
   compute_config = {
-    docker_image_uri       = var.docker_image_uri
-    fargate_cpu            = var.fargate_cpu
-    fargate_memory         = var.fargate_memory
-    fargate_initial_task_count = var.fargate_initial_task_count
+    docker_image_uri            = var.docker_image_uri
+    fargate_cpu                 = var.fargate_cpu
+    fargate_memory              = var.fargate_memory
+    fargate_initial_task_count  = var.fargate_initial_task_count
+    fargate_max_task_count      = var.fargate_max_task_count
   }
 
   lambda_code = {
@@ -99,7 +104,6 @@ module "application" {
     private_subnet_ids         = data.aws_subnets.private.ids
     fargate_security_group_ids = [module.security_groups.fargate_sg_id]
     lambda_security_group_ids  = [module.security_groups.lambda_sg_id]
-    efs_security_group_ids     = [module.security_groups.efs_sg_id]
   }
 
   iam_roles = {
@@ -110,11 +114,13 @@ module "application" {
   }
 
   service_dependencies = {
-    gpkg_data_bucket_name   = module.data_stores.gpkg_data_bucket_name
-    output_data_bucket_name = module.data_stores.output_data_bucket_name
-    rabbitmq_endpoint       = module.messaging.rabbitmq_endpoint
-    rabbitmq_secret_arn     = module.messaging.rabbitmq_secret_arn
-    elasticache_endpoint    = module.data_stores.elasticache_redis_endpoint
+    app_bucket_name           = var.app_bucket_name
+    app_output_s3_key         = var.app_output_s3_key
+    hydrofabric_s3_key        = var.hydrofabric_s3_key
+    postprocess_output_s3_key = var.postprocess_output_s3_key
+    rabbitmq_endpoint         = module.messaging.rabbitmq_endpoint
+    rabbitmq_secret_arn       = module.messaging.rabbitmq_secret_arn
+    elasticache_endpoint      = module.data_stores.elasticache_redis_endpoint
   }
 }
 
@@ -138,22 +144,20 @@ resource "aws_scheduler_schedule" "producer_lambda_trigger" {
   }
 }
 
-resource "aws_s3_bucket_notification" "post_process_trigger" {
-  depends_on = [aws_lambda_permission.allow_s3_to_call_lambda]
-  bucket = module.data_stores.output_data_bucket_name
+resource "aws_scheduler_schedule" "postproc_lambda_trigger" {
+  name       = "${var.app_name}-${var.environment}-postproc-trigger"
+  group_name = "default"
 
-  lambda_function {
-    lambda_function_arn = module.application.lambda_postproc_arn
-    events              = ["s3:ObjectCreated:*"]
+  flexible_time_window {
+    mode = "OFF"
   }
-}
 
-resource "aws_lambda_permission" "allow_s3_to_call_lambda" {
-  statement_id  = "AllowS3ToCallLambda"
-  action        = "lambda:InvokeFunction"
-  function_name = module.application.lambda_postproc_function_name
-  principal     = "s3.amazonaws.com"
-  source_arn    = module.data_stores.output_data_bucket_arn
+  schedule_expression = var.postprocess_schedule_expression
+
+  target {
+    arn      = module.application.lambda_postproc_arn
+    role_arn = module.iam_roles.scheduler_role_arn
+  }
 }
 
 data "aws_caller_identity" "current" {}

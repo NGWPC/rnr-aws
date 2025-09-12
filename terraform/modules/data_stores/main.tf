@@ -1,48 +1,7 @@
 # -----------------------------------------------------------------------------
 # Data Stores Module
-# Creates S3 buckets and the ElastiCache Redis cluster.
+# Creates ElastiCache Redis cluster.
 # -----------------------------------------------------------------------------
-
-# --- S3 Buckets ---
-
-# Bucket for GPKG Domain Data (Input)
-resource "aws_s3_bucket" "gpkg_data_bucket" {
-  bucket = "${var.app_name}-${var.environment}-gpkg-data"
-
-  tags = {
-    Name        = "${var.app_name}-${var.environment}-gpkg-data"
-    Environment = var.environment
-  }
-}
-
-resource "aws_s3_bucket_public_access_block" "gpkg_data_bucket_pab" {
-  bucket = aws_s3_bucket.gpkg_data_bucket.id
-
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
-
-# Bucket for Output Data
-resource "aws_s3_bucket" "output_data_bucket" {
-  bucket = "${var.app_name}-${var.environment}-output-data"
-
-  tags = {
-    Name        = "${var.app_name}-${var.environment}-output-data"
-    Environment = var.environment
-  }
-}
-
-resource "aws_s3_bucket_public_access_block" "output_data_bucket_pab" {
-  bucket = aws_s3_bucket.output_data_bucket.id
-
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
-
 
 # --- ElastiCache for Redis ---
 

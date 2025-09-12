@@ -78,24 +78,3 @@ resource "aws_security_group" "rabbitmq" {
     Environment = var.environment
   }
 }
-
-# --- EFS Security Group ---
-resource "aws_security_group" "efs" {
-  name        = "${var.app_name}-${var.environment}-efs-sg"
-  description = "Controls access to the EFS mount targets."
-  vpc_id      = var.vpc_id
-
-  # Allow inbound NFS traffic from the Fargate security group
-  ingress {
-    from_port       = 2049
-    to_port         = 2049
-    protocol        = "tcp"
-    security_groups = [aws_security_group.fargate.id]
-  }
-
-  tags = {
-    Name        = "${var.app_name}-${var.environment}-efs-sg"
-    Environment = var.environment
-  }
-}
-

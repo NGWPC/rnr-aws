@@ -2,16 +2,6 @@
 # Root Module Outputs
 # -----------------------------------------------------------------------------
 
-output "gpkg_data_bucket_name" {
-  description = "The name of the S3 bucket for storing GPKG domain data."
-  value       = module.data_stores.gpkg_data_bucket_name
-}
-
-output "output_data_bucket_name" {
-  description = "The name of the S3 bucket for storing output data."
-  value       = module.data_stores.output_data_bucket_name
-}
-
 output "ecs_cluster_name" {
   description = "The name of the ECS cluster."
   value       = module.application.ecs_cluster_name

@@ -45,3 +45,42 @@ To integrate the real application code, one would need to review and update the 
     The infrastructure passes a basic example set of environment variables (bucket names, RabbitMQ endpoint, ETC.) to the compute services. These are defined in terraform/modules/app/main.tf.
 
     Action: Identify any additional configuration values or secrets your application needs. For non-sensitive values, we can add them as new environment variables. For sensitive values (API keys, ETC.), we will likely add them to AWS Secrets Manager and grant the necessary IAM permissions to access them.
+
+
+## Pre-requisites
+### Bucket Policy Requirements
+
+This application's IaC requires an existing S3 bucket to store input and output data currently.
+To allow the ECS tasks and Lambda functions created by this stack to access the bucket, the bucket owner must update the bucket policy to grant permissions to the application’s IAM roles.
+
+After deploying this stack, provide the following IAM role ARNs (created by Terraform) to the S3 Bucket Owner.
+
+```
+arn:aws:iam::<ACCOUNT_ID>:role/<APP_NAME>-<ENV>-ecs-task-role
+arn:aws:iam::<ACCOUNT_ID>:role/<APP_NAME>-<ENV>-lambda-postproc-role
+```
+
+You will want to integrate the following or request that theythe owner integrate the following statement with their bucket policy:
+
+```
+{
+  "Sid": "AllowRnRTestAppRolesS3Access",
+  "Effect": "Allow",
+  "Principal": {
+    "AWS": [
+      "arn:aws:iam::<ACCOUNT_ID>:role/<APP_NAME>-<ENV>-ecs-task-role",
+      "arn:aws:iam::<ACCOUNT_ID>:role/<APP_NAME>-<ENV>-lambda-postproc-role"
+    ]
+  },
+  "Action": [
+    "s3:GetObject",
+    "s3:PutObject",
+    "s3:DeleteObject",
+    "s3:ListBucket"
+  ],
+  "Resource": [
+    "arn:aws:s3:::<BUCKET_NAME>",
+    "arn:aws:s3:::<BUCKET_NAME>/*"
+  ]
+}
+```

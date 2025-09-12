@@ -129,6 +129,7 @@ def lambda_handler(event, context):
     s3_path = str(troute_output_path)[5:]
     all_nc_files = fs.glob(f"{s3_path}/**/*.nc")
     for nc_file in all_nc_files:
+        filename = os.path.basename(nc_file)
         file_timestamp = extract_timestamp_from_filename(nc_file.name)
         # Filter files created within the last 24 hours
         if (

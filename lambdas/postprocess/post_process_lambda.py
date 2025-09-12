@@ -1,4 +1,3 @@
-import boto3
 import os
 import re
 from datetime import datetime, timedelta
@@ -10,7 +9,6 @@ import geopandas as gpd
 import pandas as pd
 import s3fs
 
-s3 = boto3.client("s3")
 fs = s3fs.S3FileSystem()
 
 

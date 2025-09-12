@@ -79,27 +79,27 @@ def to_geopandas(df: pd.DataFrame, crs: str = "EPSG:5070") -> gpd.GeoDataFrame:
 def lambda_handler(event, context):
     print("PostProcess Lambda triggered with:", event)
 
-    troute_output_path = os.getenv("app_output_s3_key")
+    troute_output_path = os.getenv("APP_OUTPUT_S3_KEY")
     if not troute_output_path:
         return {
             "status": "error",
-            "message": "app_output_s3_key environment variable not set",
+            "message": "APP_OUTPUT_S3_KEY environment variable not set",
         }
     troute_output_path = Path(troute_output_path)
 
-    hydrofabric_path = os.getenv("hydrofabric_s3_key")
+    hydrofabric_path = os.getenv("HYDROFABRIC_S3_KEY")
     if not hydrofabric_path:
         return {
             "status": "error",
-            "message": "hydrofabric_s3_key environment variable not set",
+            "message": "HYDROFABRIC_S3_KEY environment variable not set",
         }
     hydrofabric_path = Path(hydrofabric_path)
 
-    rnr_path = os.getenv("postprocess_output_s3_key")
+    rnr_path = os.getenv("POSTPROCESS_OUTPUT_S3_KEY")
     if not rnr_path:
         return {
             "status": "error",
-            "message": "postprocess_output_s3_key environment variable not set",
+            "message": "POSTPROCESS_OUTPUT_S3_KEY environment variable not set",
         }
     rnr_path = Path(rnr_path)
 
@@ -129,8 +129,8 @@ def lambda_handler(event, context):
     s3_path = str(troute_output_path)[5:]
     all_nc_files = fs.glob(f"{s3_path}/**/*.nc")
     for nc_file in all_nc_files:
-        filename = os.path.basename(nc_file)
-        file_timestamp = extract_timestamp_from_filename(nc_file.name)
+        filename = Path(nc_file).name
+        file_timestamp = extract_timestamp_from_filename(filename)
         # Filter files created within the last 24 hours
         if (
             file_timestamp and twenty_four_hours_ago <= file_timestamp <= current_time

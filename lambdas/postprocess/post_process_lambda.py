@@ -127,9 +127,7 @@ def lambda_handler(event, context):
         filename = Path(nc_file).name
         file_timestamp = extract_timestamp_from_filename(filename)
         # Filter files created within the last 24 hours
-        if (
-            file_timestamp and twenty_four_hours_ago <= file_timestamp <= current_time
-        ):  # Searches for files with timestamps within the past 24 hours
+        if (file_timestamp and file_timestamp >= twenty_four_hours_ago):  # Searches for files with timestamps within the past 24 hours
             full_s3_url = f"s3://{nc_file}"
             ds = xr.open_dataset(full_s3_url, engine="netcdf4")
 

@@ -184,7 +184,7 @@ def lambda_handler(event, context):
 
         output_filename = f"output_inundation_{timestamp}.csv"
         df = pd.DataFrame(data_dict)
-        df.to_parquet(f"{rnr_path.rstrip('/')}/{output_filename}"))
+        df.to_parquet(f"{rnr_path.rstrip('/')}/{output_filename}")
         return {"status": "processed"}
     else:
         return {"status": "no data processed"}

@@ -83,7 +83,6 @@ def lambda_handler(event, context):
             "status": "error",
             "message": "APP_OUTPUT_S3_KEY environment variable not set",
         }
-    troute_output_path = Path(troute_output_path)
 
     hydrofabric_path = os.getenv("HYDROFABRIC_S3_KEY")
     if not hydrofabric_path:
@@ -91,7 +90,6 @@ def lambda_handler(event, context):
             "status": "error",
             "message": "HYDROFABRIC_S3_KEY environment variable not set",
         }
-    hydrofabric_path = Path(hydrofabric_path)
 
     rnr_path = os.getenv("POSTPROCESS_OUTPUT_S3_KEY")
     if not rnr_path:
@@ -99,7 +97,6 @@ def lambda_handler(event, context):
             "status": "error",
             "message": "POSTPROCESS_OUTPUT_S3_KEY environment variable not set",
         }
-    rnr_path = Path(rnr_path)
 
     data_dict = {
         "feature_id": [],
@@ -120,11 +117,11 @@ def lambda_handler(event, context):
 
     # Reading in the hydrofabric
     print("Reading the hydrofabric")
-    flowpaths = to_geopandas(pd.read_parquet(hydrofabric_path / "flowpaths.parquet"))
+    flowpaths = to_geopandas(pd.read_parquet(f"{hydrofabric_path.rstrip('/')}/flowpaths.parquet"))
     flowpaths = flowpaths.set_index("id")
 
     print("Opening all forecasts for times after the current timestep")
-    s3_path = str(troute_output_path)[5:]
+    s3_path = troute_output_path[5:]
     all_nc_files = fs.glob(f"{s3_path}/**/*.nc")
     for nc_file in all_nc_files:
         filename = Path(nc_file).name
@@ -187,7 +184,7 @@ def lambda_handler(event, context):
 
         output_filename = f"output_inundation_{timestamp}.csv"
         df = pd.DataFrame(data_dict)
-        df.to_parquet(rnr_path / output_filename)
+        df.to_parquet(f"{rnr_path.rstrip('/')}/{output_filename}"))
         return {"status": "processed"}
     else:
         return {"status": "no data processed"}

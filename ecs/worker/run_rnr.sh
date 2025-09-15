@@ -50,7 +50,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Build the command to run
-PYTHON_CMD="source ../../.venv/bin/activate && python main.py"
+PYTHON_CMD="source ../../.venv/bin/activate && python iac.py"
 
 # Add the num-hml-files argument if specified
 if [[ -n "$NUM_HML_FILES" ]]; then

@@ -16,10 +16,11 @@ variable "aws_region" {
 variable "compute_config" {
   description = "Configuration for the Fargate compute resources."
   type = object({
-    docker_image_uri       = string
-    fargate_cpu            = number
-    fargate_memory         = number
-    fargate_initial_task_count = number
+    docker_image_uri            = string
+    fargate_cpu                 = number
+    fargate_memory              = number
+    fargate_initial_task_count  = number
+    fargate_max_task_count      = number
   })
 }
 
@@ -38,7 +39,6 @@ variable "networking" {
     private_subnet_ids       = list(string)
     fargate_security_group_ids = list(string)
     lambda_security_group_ids  = list(string)
-    efs_security_group_ids     = list(string)
   })
 }
 
@@ -55,10 +55,12 @@ variable "iam_roles" {
 variable "service_dependencies" {
   description = "Endpoints and names for dependent services like S3, RabbitMQ, and ElastiCache."
   type = object({
-    gpkg_data_bucket_name   = string
-    output_data_bucket_name = string
-    rabbitmq_endpoint       = string
-    rabbitmq_secret_arn     = string
-    elasticache_endpoint    = string
+    app_bucket_name           = string
+    app_output_s3_key         = string
+    postprocess_output_s3_key = string
+    hydrofabric_s3_key        = string
+    rabbitmq_endpoint         = string
+    rabbitmq_secret_arn       = string
+    elasticache_endpoint      = string
   })
 }

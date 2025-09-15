@@ -1,0 +1,71 @@
+@startuml RnR_Infra_Architecture
+!define AWSPUML https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v20.0/dist
+!includeurl AWSPUML/AWSCommon.puml
+!includeurl AWSPUML/General/User.puml
+!includeurl AWSPUML/ApplicationIntegration/EventBridge.puml
+!includeurl AWSPUML/SecurityIdentityCompliance/SecretsManager.puml
+!includeurl AWSPUML/ApplicationIntegration/MQ.puml
+!includeurl AWSPUML/Database/ElastiCache.puml
+!includeurl AWSPUML/Compute/Lambda.puml
+!includeurl AWSPUML/Containers/Fargate.puml
+!includeurl AWSPUML/Storage/SimpleStorageService.puml
+
+title RnR AWS Infrastructure Architecture
+skinparam linetype ortho
+
+skinparam rectangle<<vpc>> {
+  BorderColor #2E64FE
+  BackgroundColor #A9DCDF
+}
+
+package "RnR AWS Infrastructure" {
+
+  cloud "AWS Cloud" {
+    EventBridge(producer_scheduler, "EventBridge Scheduler", "Triggers the Producer on a schedule (5 min)")
+    EventBridge(postprocess_scheduler, "EventBridge Scheduler", "Triggers the Post Process on a schedule (10 min)")
+
+    SecretsManager(secrets, "Secrets Manager", "Stores RabbitMQ credentials")
+
+    rectangle "VPC" <<vpc>> {
+      MQ(rabbitmq, "Amazon MQ (RabbitMQ)", "Message queue for processing tasks")
+      ElastiCache(redis, "ElastiCache for Redis", "Caches previously processed data IDs")
+
+      Lambda(producer_lambda, "Producer Lambda", "Fetches data, checks cache, and queues messages")
+      Fargate(fargate_worker, "ECS Fargate Worker", "T-Route")
+      Lambda(postproc_lambda, "Post-Process Lambda", "Performs final actions on output")
+    }
+
+    SimpleStorageService(bucket, "S3 Bucket", "Object Storage")
+  }
+}
+
+rectangle "External APIs" {
+    component "Weather API" as weather_api
+    component "NWPS API" as nwps_api
+}
+
+' --- Relationships and Data Flow ---
+legend top right
+  |= Flow            |= Color   |
+  | Producer         | <#blue>  |
+  | Worker (T-Route) | <#green> |
+  | Post Process     | <#purple>|
+endlegend
+
+producer_scheduler --> producer_lambda : 1. Triggers (cron)
+producer_lambda -[#blue]-> weather_api : "2. Fetches data"
+producer_lambda -[#blue]-> nwps_api : "2. Fetches data"
+producer_lambda -[#blue]-> redis : 3. Checks for existing data
+producer_lambda -[#blue]-> rabbitmq : 4. Publishes message
+producer_lambda .[#blue].> secrets : Reads credentials
+
+fargate_worker -[#green]-> rabbitmq : 5. Consumes message
+fargate_worker -[#green]-> bucket : 6. Reads domain data
+fargate_worker -[#green]-> bucket : 7. Writes results
+fargate_worker .[#green].> secrets : Reads credentials
+
+postprocess_scheduler --> postproc_lambda : 8. Triggers (cron)
+postproc_lambda -[#purple]-> bucket : 9. Processes output data
+postproc_lambda -[#purple]-> bucket : 10. Reads domain data
+
+@enduml

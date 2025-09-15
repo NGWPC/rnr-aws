@@ -17,9 +17,3 @@ output "rabbitmq_sg_id" {
   description = "The ID of the RabbitMQ security group."
   value       = aws_security_group.rabbitmq.id
 }
-
-output "efs_sg_id" {
-  description = "The ID of the EFS security group."
-  value       = aws_security_group.efs.id
-}
-

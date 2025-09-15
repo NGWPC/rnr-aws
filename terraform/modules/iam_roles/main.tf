@@ -85,7 +85,7 @@ resource "aws_iam_role" "ecs_task_role" {
 
 resource "aws_iam_policy" "ecs_task_policy" {
   name        = "${var.app_name}-${var.environment}-ecs-task-policy"
-  description = "Policy for the T-Route ECS task to access S3 buckets."
+  description = "Policy for the T-Route ECS task to access the appropriate S3 bucket."
 
   policy = jsonencode({
     Version = "2012-10-17",
@@ -94,22 +94,13 @@ resource "aws_iam_policy" "ecs_task_policy" {
         Effect   = "Allow",
         Action   = [
             "s3:GetObject",
-            "s3:ListBucket"
-        ],
-        Resource = [
-            var.input_data_bucket_arn,
-            "${var.input_data_bucket_arn}/*"
-        ]
-      },
-      {
-        Effect   = "Allow",
-        Action   = [
+            "s3:ListBucket",
             "s3:PutObject",
             "s3:DeleteObject"
         ],
         Resource = [
-            var.output_data_bucket_arn,
-            "${var.output_data_bucket_arn}/*"
+          "arn:aws:s3:::${var.app_bucket_name}",
+          "arn:aws:s3:::${var.app_bucket_name}/*"
         ]
       }
     ]
@@ -162,6 +153,35 @@ resource "aws_iam_role" "lambda_postproc_role" {
   }
 }
 
+resource "aws_iam_policy" "lambda_postproc_policy" {
+  name        = "${var.app_name}-${var.environment}-lambda-postproc-policy"
+  description = "Policy for the Post Processing Lambda to access the appropriate S3 bucket."
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect   = "Allow",
+        Action   = [
+            "s3:GetObject",
+            "s3:ListBucket",
+            "s3:PutObject",
+            "s3:DeleteObject"
+        ],
+        Resource = [
+          "arn:aws:s3:::${var.app_bucket_name}",
+          "arn:aws:s3:::${var.app_bucket_name}/*"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_postproc_s3_access" {
+  role       = aws_iam_role.lambda_postproc_role.name
+  policy_arn = aws_iam_policy.lambda_postproc_policy.arn
+}
+
 resource "aws_iam_role_policy_attachment" "lambda_postproc_basic_execution" {
   role       = aws_iam_role.lambda_postproc_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
@@ -169,7 +189,7 @@ resource "aws_iam_role_policy_attachment" "lambda_postproc_basic_execution" {
 
 # -----------------------------------------------------------------------------
 # EventBridge Scheduler Role
-# Needs permission to invoke the producer Lambda function.
+# Needs permission to invoke the producer and post process Lambda functions.
 # -----------------------------------------------------------------------------
 resource "aws_iam_role" "scheduler_role" {
   name               = "${var.app_name}-${var.environment}-scheduler-role"
@@ -192,7 +212,10 @@ resource "aws_iam_policy" "scheduler_policy" {
         Action   = "lambda:InvokeFunction",
         # This ARN is constructed to specifically target the producer lambda created in the application module.
         # This follows the principle of least privilege.
-        Resource = "arn:aws:lambda:${var.aws_region}:${var.aws_account_id}:function:${var.app_name}-${var.environment}-producer-lambda"
+        Resource = [
+        "arn:aws:lambda:${var.aws_region}:${var.aws_account_id}:function:${var.app_name}-${var.environment}-producer-lambda",
+        "arn:aws:lambda:${var.aws_region}:${var.aws_account_id}:function:${var.app_name}-${var.environment}-postproc-lambda"
+        ]
       }
     ]
   })

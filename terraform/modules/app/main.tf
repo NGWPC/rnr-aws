@@ -149,6 +149,11 @@ resource "aws_lambda_function" "post_process" {
   runtime = "python3.12"
   timeout = 300
 
+  # Increased ephemeral storage to handle large parquet file during post-processing
+  ephemeral_storage {
+    size = 2048
+  }
+
   environment {
     variables = {
       APP_BUCKET_NAME = var.service_dependencies.app_bucket_name

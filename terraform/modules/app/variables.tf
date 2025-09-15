@@ -30,6 +30,7 @@ variable "lambda_code" {
     bucket_name               = string
     producer_s3_key           = string
     post_process_s3_key       = string
+    post_process_layer_s3_key = string
   })
 }
 

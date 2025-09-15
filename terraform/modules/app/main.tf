@@ -138,6 +138,19 @@ resource "aws_lambda_function" "producer" {
   }
 }
 
+# --- Post Process Lambda Dependencies Layer and Function ---
+
+resource "aws_lambda_layer_version" "post_process_deps" {
+  layer_name = "${var.app_name}-${var.environment}-post-process-dependencies"
+
+  # Use the same bucket as the function code
+  s3_bucket = var.lambda_code.bucket_name 
+  s3_key    = var.lambda_code.post_process_layer_s3_key
+
+  compatible_runtimes = ["python3.12"]
+  description         = "Shared dependencies for the post-processing Lambda"
+}
+
 resource "aws_lambda_function" "post_process" {
   function_name = "${var.app_name}-${var.environment}-post-process"
   role          = var.iam_roles.post_process_lambda
@@ -148,6 +161,8 @@ resource "aws_lambda_function" "post_process" {
   handler = "post_process_lambda.lambda_handler"
   runtime = "python3.12"
   timeout = 300
+
+  layers = [aws_lambda_layer_version.post_process_deps.arn]
 
   # Increased ephemeral storage to handle large parquet file during post-processing
   ephemeral_storage {

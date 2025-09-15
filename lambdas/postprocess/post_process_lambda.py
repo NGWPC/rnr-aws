@@ -5,8 +5,6 @@ from pathlib import Path
 
 import pandas as pd
 import xarray as xr
-import geopandas as gpd
-import pandas as pd
 import s3fs
 
 fs = s3fs.S3FileSystem()
@@ -44,34 +42,6 @@ def extract_timestamp_from_filename(filename: str) -> datetime | None:
     except (ValueError, IndexError) as e:
         print(f"Error parsing timestamp from {filename}: {e}")
         return None
-
-
-def to_geopandas(df: pd.DataFrame, crs: str = "EPSG:5070") -> gpd.GeoDataFrame:
-    """Converts the geometries in a pandas df to a geopandas dataframe
-
-    Parameters
-    ----------
-    df: pd.DataFrame
-        The iceberg table you are trying to read from
-    crs: str, optional
-        A string representing the CRS to set in the gdf, by default "EPSG:5070"
-
-    Returns
-    -------
-    gpd.DataFrame
-        The resulting queried row, but in a geodataframe
-
-    Raises
-    ------
-    ValueError
-        Raised if the table does not have a geometry column
-    """
-    if "geometry" not in df.columns:
-        raise ValueError("The provided table does not have a geometry column.")
-
-    return gpd.GeoDataFrame(
-        df, geometry=gpd.GeoSeries.from_wkb(df["geometry"]), crs=crs
-    )
 
 
 def lambda_handler(event, context):
@@ -124,7 +94,7 @@ def lambda_handler(event, context):
 
     # Reading in the hydrofabric
     print("Reading the hydrofabric")
-    flowpaths = to_geopandas(pd.read_parquet(f"s3://{bucket_name}/{hydrofabric_path}/flowpaths.parquet"))
+    flowpaths = pd.read_parquet(f"s3://{bucket_name}/{hydrofabric_path}/flowpaths.parquet")
     flowpaths = flowpaths.set_index("id")
 
     print("Opening all forecasts for times after the current timestep")
@@ -189,7 +159,7 @@ def lambda_handler(event, context):
 
         output_filename = f"output_inundation_{timestamp}.csv"
         df = pd.DataFrame(data_dict)
-        df.to_parquet(f"s3://{bucket_name}/{rnr_path}/{output_filename}")
+        df.to_csv(f"s3://{bucket_name}/{rnr_path}/{output_filename}")
         return {"status": "processed"}
     else:
         return {"status": "no data processed"}

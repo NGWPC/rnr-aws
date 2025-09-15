@@ -213,8 +213,8 @@ resource "aws_iam_policy" "scheduler_policy" {
         # This ARN is constructed to specifically target the producer lambda created in the application module.
         # This follows the principle of least privilege.
         Resource = [
-        "arn:aws:lambda:${var.aws_region}:${var.aws_account_id}:function:${var.app_name}-${var.environment}-producer-lambda",
-        "arn:aws:lambda:${var.aws_region}:${var.aws_account_id}:function:${var.app_name}-${var.environment}-postproc-lambda"
+        "arn:aws:lambda:${var.aws_region}:${var.aws_account_id}:function:${var.app_name}-${var.environment}-producer",
+        "arn:aws:lambda:${var.aws_region}:${var.aws_account_id}:function:${var.app_name}-${var.environment}-post-process"
         ]
       }
     ]

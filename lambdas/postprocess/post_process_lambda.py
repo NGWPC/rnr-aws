@@ -77,6 +77,13 @@ def to_geopandas(df: pd.DataFrame, crs: str = "EPSG:5070") -> gpd.GeoDataFrame:
 def lambda_handler(event, context):
     print("PostProcess Lambda triggered with:", event)
 
+    bucket_name = os.getenv("APP_BUCKET_NAME")
+    if not bucket_name:
+        return {
+            "status": "error",
+            "message": "APP_BUCKET_NAME environment variable not set",
+        }
+
     troute_output_path = os.getenv("APP_OUTPUT_S3_KEY")
     if not troute_output_path:
         return {
@@ -117,11 +124,11 @@ def lambda_handler(event, context):
 
     # Reading in the hydrofabric
     print("Reading the hydrofabric")
-    flowpaths = to_geopandas(pd.read_parquet(f"{hydrofabric_path.rstrip('/')}/flowpaths.parquet"))
+    flowpaths = to_geopandas(pd.read_parquet(f"s3://{bucket_name}/{hydrofabric_path}/flowpaths.parquet"))
     flowpaths = flowpaths.set_index("id")
 
     print("Opening all forecasts for times after the current timestep")
-    s3_path = troute_output_path[5:]
+    s3_path = f"{bucket_name}/{troute_output_path}"
     all_nc_files = fs.glob(f"{s3_path}/**/*.nc")
     for nc_file in all_nc_files:
         filename = Path(nc_file).name
@@ -182,7 +189,7 @@ def lambda_handler(event, context):
 
         output_filename = f"output_inundation_{timestamp}.csv"
         df = pd.DataFrame(data_dict)
-        df.to_parquet(f"{rnr_path.rstrip('/')}/{output_filename}")
+        df.to_parquet(f"s3://{bucket_name}/{rnr_path}/{output_filename}")
         return {"status": "processed"}
     else:
         return {"status": "no data processed"}

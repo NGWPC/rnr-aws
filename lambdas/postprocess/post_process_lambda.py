@@ -1,13 +1,14 @@
 import os
 import re
+import boto3
 from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
 import xarray as xr
-import s3fs
 
-fs = s3fs.S3FileSystem()
+# Initialize the S3 client from boto3
+s3_client = boto3.client("s3")
 
 
 def extract_timestamp_from_filename(filename: str) -> datetime | None:
@@ -92,74 +93,112 @@ def lambda_handler(event, context):
     twenty_four_hours_ago = current_time - timedelta(hours=24)
     timestamp = current_time.strftime("%Y-%m-%d_%H:%M:%S")
 
-    # Reading in the hydrofabric
+    # Reading in the hydrofabric by downloading it to the /tmp/ directory first
     print("Reading the hydrofabric")
-    flowpaths = pd.read_parquet(f"s3://{bucket_name}/{hydrofabric_path}/flowpaths.parquet")
+    local_hydrofabric_path = "/tmp/flowpaths.parquet"
+    s3_client.download_file(
+        Bucket=bucket_name,
+        Key=f"{hydrofabric_path}/flowpaths.parquet",
+        Filename=local_hydrofabric_path,
+    )
+    flowpaths = pd.read_parquet(local_hydrofabric_path)
     flowpaths = flowpaths.set_index("id")
 
     print("Opening all forecasts for times after the current timestep")
-    s3_path = f"{bucket_name}/{troute_output_path}"
-    all_nc_files = fs.glob(f"{s3_path}/**/*.nc")
-    for nc_file in all_nc_files:
-        filename = Path(nc_file).name
-        file_timestamp = extract_timestamp_from_filename(filename)
-        # Filter files created within the last 24 hours
-        if (file_timestamp and file_timestamp >= twenty_four_hours_ago):  # Searches for files with timestamps within the past 24 hours
-            full_s3_url = f"s3://{nc_file}"
-            ds = xr.open_dataset(full_s3_url, engine="netcdf4")
 
-            # Find which feature_id and time index corresponds to the global max
-            global_max_flow = ds.flow.max()
+    # Use a boto3 paginator to list relevant .nc files
+    paginator = s3_client.get_paginator("list_objects_v2")
+    pages = paginator.paginate(Bucket=bucket_name, Prefix=troute_output_path)
 
-            max_location = (
-                ds.flow.where(ds.flow == global_max_flow)
-                .stack(flat_dim=["feature_id", "time"])
-                .dropna("flat_dim")
-            )
-            max_time_idx = max_location.time.values[0]
-            max_ds = ds.sel(time=max_time_idx)
-            catchments = [f"wb-{_id}" for _id in max_ds.feature_id.values]
-            filtered_flowpaths = flowpaths.loc[flowpaths.index.isin(catchments)]
-            data_dict["feature_id"].extend(
-                max_ds.feature_id.values
-            )  # Using the hydrofabric v2.2 IDs since there are many NHD feature IDs per hydrofabric catchment
-            data_dict["feature_id_str"].extend(catchments)
-            data_dict["strm_order"].extend(
-                [max_ds.attrs["stream_order"]] * len(catchments)
-            )
-            data_dict["name"].extend([max_ds.attrs["name"]] * len(catchments))
-            data_dict["state"].extend([max_ds.attrs["state"]] * len(catchments))
-            data_dict["max_status"].extend(
-                [max_ds.attrs["max_status"]] * len(catchments)
-            )
-            data_dict["reference_time"].extend(
-                [max_ds.attrs["file_reference_time"]] * len(catchments)
-            )
-            data_dict["update_time"].extend([timestamp] * len(catchments))
-            data_dict["streamflow_cfs"].extend(max_ds.flow.values * 35.3147)  # to cfs
+    processed_files = False
+    for page in pages:
+        for obj in page.get("Contents", []):
+            s3_key = obj["Key"]
+            if not s3_key.endswith(".nc"):
+                continue
 
-            total_miles = 0.0
-            miles_upstream = [total_miles]
-            # Flowpaths are pre-sorted by upstream to downstream
-            for i, (_, row) in enumerate(filtered_flowpaths.iterrows()):
-                if (
-                    i != len(filtered_flowpaths) - 1
-                ):  # Skipping the last segment since its miles from upstream based on the upstream connection
-                    total_miles += row["lengthkm"] * 0.621371  # converting km to miles
-                    miles_upstream.append(total_miles)
+            filename = Path(s3_key).name
+            file_timestamp = extract_timestamp_from_filename(filename)
 
-            data_dict["inherited_rfc_forecasts"].extend(
-                [
-                    f"{max_ds.attrs['max_status']} issued {max_ds.attrs['file_reference_time']} at {max_ds.attrs['rfc_location']} ({max_ds.attrs['rfc_reach_id']} [order {max_ds.attrs['stream_order']}]) {miles} miles upstream"
-                    for miles in miles_upstream
-                ]
-            )
-            data_dict["geom"].extend(filtered_flowpaths.geometry.values.tolist())
-            ds.close()
+            # Filter files created within the last 24 hours
+            if file_timestamp and file_timestamp >= twenty_four_hours_ago:
+                processed_files = True
+                
+                # Download the .nc file to the /tmp/ directory to be read by xarray
+                local_nc_path = f"/tmp/{filename}"
+                s3_client.download_file(
+                    Bucket=bucket_name, Key=s3_key, Filename=local_nc_path
+                )
+                ds = xr.open_dataset(local_nc_path, engine="netcdf4")
 
+                # Find which feature_id and time index corresponds to the global max
+                global_max_flow = ds.flow.max()
+                max_location = (
+                    ds.flow.where(ds.flow == global_max_flow)
+                    .stack(flat_dim=["feature_id", "time"])
+                    .dropna("flat_dim")
+                )
+                max_time_idx = max_location.time.values[0]
+                max_ds = ds.sel(time=max_time_idx)
+                catchments = [f"wb-{_id}" for _id in max_ds.feature_id.values]
+                filtered_flowpaths = flowpaths.loc[flowpaths.index.isin(catchments)]
+                
+                data_dict["feature_id"].extend(
+                    max_ds.feature_id.values
+                ) # Using the hydrofabric v2.2 IDs since there are many NHD feature IDs per hydrofabric catchment
+                data_dict["feature_id_str"].extend(catchments)
+                data_dict["strm_order"].extend(
+                    [max_ds.attrs["stream_order"]] * len(catchments)
+                )
+                data_dict["name"].extend([max_ds.attrs["name"]] * len(catchments))
+                data_dict["state"].extend([max_ds.attrs["state"]] * len(catchments))
+                data_dict["max_status"].extend(
+                    [max_ds.attrs["max_status"]] * len(catchments)
+                )
+                data_dict["reference_time"].extend(
+                    [max_ds.attrs["file_reference_time"]] * len(catchments)
+                )
+                data_dict["update_time"].extend([timestamp] * len(catchments))
+                data_dict["streamflow_cfs"].extend(max_ds.flow.values * 35.3147) # to cfs
+                
+                total_miles = 0.0
+                miles_upstream = [total_miles]
+                # Flowpaths are pre-sorted by upstream to downstream
+                for i, (_, row) in enumerate(filtered_flowpaths.iterrows()):
+                    if (
+                        i != len(filtered_flowpaths) - 1
+                    ): # Skipping the last segment since its miles from upstream based on the upstream connection
+                        total_miles += row["lengthkm"] * 0.621371 # converting km to miles
+                        miles_upstream.append(total_miles)
+                
+                data_dict["inherited_rfc_forecasts"].extend(
+                    [
+                        f"{max_ds.attrs['max_status']} issued {max_ds.attrs['file_reference_time']} at {max_ds.attrs['rfc_location']} ({max_ds.attrs['rfc_reach_id']} [order {max_ds.attrs['stream_order']}]) {miles} miles upstream"
+                        for miles in miles_upstream
+                    ]
+                )
+                data_dict["geom"].extend(filtered_flowpaths.geometry.values.tolist())
+                ds.close()
+
+                # Clean up the downloaded NetCDF file to conserve space in /tmp/
+                os.remove(local_nc_path)
+
+    # If any files were processed, write the output to a local CSV and upload to S3
+    if processed_files:
         output_filename = f"output_inundation_{timestamp}.csv"
+        local_output_path = f"/tmp/{output_filename}"
         df = pd.DataFrame(data_dict)
-        df.to_csv(f"s3://{bucket_name}/{rnr_path}/{output_filename}")
+
+        # Per instructions, the binary geometry data is intentionally not converted to WKT
+        df.to_csv(local_output_path, index=False)
+
+        # Upload the final output file to S3
+        output_s3_key = f"{rnr_path}/{output_filename}"
+        s3_client.upload_file(
+            Filename=local_output_path, Bucket=bucket_name, Key=output_s3_key
+        )
+        print(f"Successfully uploaded {output_s3_key} to S3.")
         return {"status": "processed"}
     else:
+        print("No new files to process.")
         return {"status": "no data processed"}

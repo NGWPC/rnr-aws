@@ -94,11 +94,13 @@ def lambda_handler(event, context):
     timestamp = current_time.strftime("%Y-%m-%d_%H:%M:%S")
 
     # Reading in the hydrofabric by downloading it to the /tmp/ directory first
-    print("Reading the hydrofabric")
+    s3_key = f"{hydrofabric_path}/flowpaths.parquet"
+    print(f"Attempting to download Hydrofabric Data from bucket: '{bucket_name}', Key: '{s3_key}'")
+
     local_hydrofabric_path = "/tmp/flowpaths.parquet"
     s3_client.download_file(
         Bucket=bucket_name,
-        Key=f"{hydrofabric_path}/flowpaths.parquet",
+        Key=s3_key,
         Filename=local_hydrofabric_path,
     )
     flowpaths = pd.read_parquet(local_hydrofabric_path)

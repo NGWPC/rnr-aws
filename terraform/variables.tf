@@ -53,6 +53,11 @@ variable "lambda_postproc_zip_s3_key" {
   type        = string
 }
 
+variable "lambda_postproc_layer_zip_s3_key" {
+  description = "The S3 key for the post-processing Lambda function's dependencies layer ZIP file."
+  type        = string
+}
+
 variable "app_bucket_name" {
   description = "The name of the S3 bucket used by the application for input and output data."
   type        = string

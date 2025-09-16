@@ -1,4 +1,4 @@
-name: Build Lambda Zips
+name: Build Lambda and Layer Zips
 
 on:
   push:
@@ -6,12 +6,13 @@ on:
       - main
     paths:
       - 'lambdas/**'
+      - 'lambda_layers/**'
       - '!lambdas/README.md'
   workflow_dispatch:
 
 
 jobs:
-  build-lambdas:
+  build-artifacts:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
@@ -22,60 +23,70 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Build Lambda packages
+      - name: Build Lambda Layer packages
         run: |
           # Create the distribution directory at the project root.
           mkdir -p dist
 
-          # Loop through each directory in the 'lambdas' folder.
+          # Check if the lambda_layers directory exists before trying to build
+          if [ -d "lambda_layers" ]; then
+            for dir in lambda_layers/*/ ; do
+              name=$(basename "$dir")
+              echo "--- Packaging Lambda Layer: ${name} ---"
+              
+              # Install dependencies into the required 'python' directory structure for layers
+              pip install -r "${dir}requirements.txt" -t "${dir}python"
+
+              # Go into the layer directory to create the zip from its contents
+              cd "$dir"
+              zip -r "../../dist/${name}.zip" .
+              
+              # Return to the project root
+              cd ../..
+            done
+          else
+            echo "No lambda_layers directory found, skipping layer packaging."
+          fi
+
+      - name: Build Lambda Function packages
+        run: |
           for dir in lambdas/*/ ; do
             name=$(basename "$dir")
-            echo "--- Packaging Lambda: ${name} ---"
-            cd "$dir"
-            mkdir -p package
+            echo "--- Packaging Lambda Function: ${name} ---"
+            
+            # Create a temporary packaging directory inside the lambda's folder
+            mkdir -p "${dir}package"
 
-            # If a requirements.txt file exists, install dependencies into the package directory.
-            if [ -f requirements.txt ]; then
-              pip install -r requirements.txt -t package
+            # Intelligently handle dependency installation
+            if [ -f "${dir}pyproject.toml" ]; then
+              echo "Installing dependencies from pyproject.toml"
+              # Use pip to install the package defined by pyproject.toml into the 'package' dir
+              pip install "${dir}." -t "${dir}package"
+            elif [ -f "${dir}requirements.txt" ]; then
+              echo "Installing dependencies from requirements.txt"
+              pip install -r "${dir}requirements.txt" -t "${dir}package"
+            else
+              echo "No dependency file found for ${name}."
             fi
 
-            # Copy all Python source files into the package directory.
-            cp *.py package/
-            cd package
-
-            # Create the zip file, placing it in the 'dist' directory at the project root.
+            # Copy source code, handling both flat and 'src' layouts
+            if [ -d "${dir}src" ]; then
+                echo "Copying source from src/ directory"
+                cp -r ${dir}src/* "${dir}package/"
+            fi
+            # Copy any .py files from the root of the lambda's directory
+            cp ${dir}*.py "${dir}package/" 2>/dev/null || true
+            
+            # Go into the package directory to create the zip
+            cd "${dir}package"
             zip -r "../../../dist/${name}.zip" .
 
+            # Return to the project root
             cd ../../..
           done
 
-      - name: Upload artifacts
+      - name: Upload all artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: lambda-zips
+          name: lambda-artifacts
           path: dist/*.zip
-
-# This is an alternative workflow that uploads the zips to S3 instead of as artifacts.
-# We need to work out how to securely manage the AWS credentials first though.
-#  build-lambdas:
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v4
-#
-#      - name: Set up Python
-#        uses: actions/setup-python@v5
-#        with:
-#          python-version: '3.12'
-#
-#      - name: Package each Lambda
-#        run: |
-#          for d in lambdas/*/ ; do
-#            (cd "$d" && zip -r "../../dist/$(basename $d).zip" .)
-#          done
-#
-#      - name: Upload to S3
-#        run: |
-#          aws s3 cp dist/ s3://my-lambda-zips/ --recursive
-#        env:
-#          AWS_ACCESS_KEY_ID: $#{{ secrets.AWS_ACCESS_KEY_ID }}
-#          AWS_SECRET_ACCESS_KEY: $#{{ secrets.AWS_SECRET_ACCESS_KEY }}

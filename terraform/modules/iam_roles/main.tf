@@ -156,22 +156,24 @@ resource "aws_iam_role" "lambda_postproc_role" {
 resource "aws_iam_policy" "lambda_postproc_policy" {
   name        = "${var.app_name}-${var.environment}-lambda-postproc-policy"
   description = "Policy for the Post Processing Lambda to access the appropriate S3 bucket."
-
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
+        Sid      = "AllowBucketListing",
+        Effect   = "Allow",
+        Action   = "s3:ListBucket",
+        Resource = "arn:aws:s3:::${var.app_bucket_name}"
+      },
+      {
+        Sid      = "AllowObjectActions",
         Effect   = "Allow",
         Action   = [
             "s3:GetObject",
-            "s3:ListBucket",
             "s3:PutObject",
             "s3:DeleteObject"
         ],
-        Resource = [
-          "arn:aws:s3:::${var.app_bucket_name}",
-          "arn:aws:s3:::${var.app_bucket_name}/*"
-        ]
+        Resource = "arn:aws:s3:::${var.app_bucket_name}/*"
       }
     ]
   })
@@ -213,8 +215,8 @@ resource "aws_iam_policy" "scheduler_policy" {
         # This ARN is constructed to specifically target the producer lambda created in the application module.
         # This follows the principle of least privilege.
         Resource = [
-        "arn:aws:lambda:${var.aws_region}:${var.aws_account_id}:function:${var.app_name}-${var.environment}-producer-lambda",
-        "arn:aws:lambda:${var.aws_region}:${var.aws_account_id}:function:${var.app_name}-${var.environment}-postproc-lambda"
+        "arn:aws:lambda:${var.aws_region}:${var.aws_account_id}:function:${var.app_name}-${var.environment}-producer",
+        "arn:aws:lambda:${var.aws_region}:${var.aws_account_id}:function:${var.app_name}-${var.environment}-post-process"
         ]
       }
     ]

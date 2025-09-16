@@ -95,9 +95,10 @@ module "application" {
   }
 
   lambda_code = {
-    bucket_name         = var.lambda_code_bucket_name
-    producer_s3_key     = var.lambda_producer_zip_s3_key
-    post_process_s3_key = var.lambda_postproc_zip_s3_key
+    bucket_name               = var.lambda_code_bucket_name
+    producer_s3_key           = var.lambda_producer_zip_s3_key
+    post_process_s3_key       = var.lambda_postproc_zip_s3_key
+    post_process_layer_s3_key = var.lambda_postproc_layer_zip_s3_key
   }
 
   networking = {

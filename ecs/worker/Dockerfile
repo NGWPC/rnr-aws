@@ -31,4 +31,4 @@ RUN ./compiler.sh no-e --uv
 WORKDIR "/t-route/src/troute-rnr"
 RUN uv sync --extra iac
 
-CMD ["bash", "-c", "uv run python main.py --iac"]
+CMD ["uv run python main.py --iac"]

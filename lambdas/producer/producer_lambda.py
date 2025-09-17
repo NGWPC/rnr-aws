@@ -1,5 +1,6 @@
 import os
 import json
+import ssl
 from datetime import datetime
 from typing import Any
 from urllib.parse import urlparse
@@ -105,6 +106,7 @@ def lambda_handler(event, context):
 
     creds = pika.PlainCredentials(user, pwd)
     url = urlparse(rabbit_mq_endpoint)
+    context = ssl.create_default_context()
 
     try:
         conn = pika.BlockingConnection(pika.ConnectionParameters(
@@ -112,7 +114,7 @@ def lambda_handler(event, context):
             port=url.port,
             virtual_host=url.path,
             credentials=creds,
-            ssl_options=pika.SSLOptions(),
+            ssl_options=pika.SSLOptions(context),
             heartbeat=30,
             blocked_connection_timeout=300,
         ))

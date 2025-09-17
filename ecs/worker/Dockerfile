@@ -15,22 +15,20 @@ RUN git clone https://github.com/NGWPC/t-route.git
 WORKDIR "/t-route/"
 RUN git checkout pi-7-NGWPC-6258
 
-# # Create netcdf symlink with error handling
 RUN ln -s /usr/lib64/gfortran/modules/netcdf.mod /usr/include/openmpi-x86_64/netcdf.mod || echo "NetCDF module link creation failed but continuing"
 
-# # Create venv and set environment to use it
+# Create venv and set environment to use it
 RUN uv venv --python 3.11
-ENV PATH="/app/.venv/bin:$PATH"
+ENV PATH="/t-route/.venv/bin:$PATH"
 
-# # Install the main package in development mode
+# Install the main package in development mode
 RUN uv pip install -e .
 
-# # Run the compiler script
+# Run the compiler script
 RUN ./compiler.sh no-e --uv
 
-# # Install the troute-rnr package specifically
+# Install the troute-rnr package specifically
 WORKDIR "/t-route/src/troute-rnr"
-RUN uv pip install -e .
+RUN uv sync --extra iac
 
-# # Increase max open files soft limit with error handling
-RUN ulimit -n 10000
+CMD ["bash", "-c", "uv run python main.py --iac"]

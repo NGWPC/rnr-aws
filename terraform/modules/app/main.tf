@@ -69,6 +69,7 @@ resource "aws_ecs_task_definition" "worker" {
       }
       environment = [
         { name = "RABBITMQ_ENDPOINT", value = var.service_dependencies.rabbitmq_endpoint },
+        { name = "RABBITMQ_HOST", value = var.service_dependencies.rabbitmq_endpoint },
         { name = "RABBITMQ_SECRET_ARN", value = var.service_dependencies.rabbitmq_secret_arn },
         { name = "APP_BUCKET_NAME", value = var.service_dependencies.app_bucket_name },
         { name = "APP_OUTPUT_S3_KEY", value = var.service_dependencies.app_output_s3_key },

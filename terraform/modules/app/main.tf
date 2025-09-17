@@ -126,9 +126,9 @@ resource "aws_lambda_function" "producer" {
 
   environment {
     variables = {
-      RABBITMQ_ENDPOINT     = var.service_dependencies.rabbitmq_endpoint
-      RABBITMQ_SECRET_ARN    = var.service_dependencies.rabbitmq_secret_arn
-      ELASTICACHE_ENDPOINT  = var.service_dependencies.elasticache_endpoint
+      RABBITMQ_ENDPOINT   = var.service_dependencies.rabbitmq_endpoint
+      RABBITMQ_SECRET_ARN = var.service_dependencies.rabbitmq_secret_arn
+      REDIS_HOST          = var.service_dependencies.elasticache_endpoint
     }
   }
 

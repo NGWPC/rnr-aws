@@ -2,6 +2,7 @@ import os
 import json
 from datetime import datetime
 from typing import Any
+from urllib.parse import urlparse
 
 import boto3
 import pika
@@ -103,10 +104,15 @@ def lambda_handler(event, context):
     settings = get_settings()
 
     creds = pika.PlainCredentials(user, pwd)
+    url = urlparse(rabbit_mq_endpoint)
+
     try:
         conn = pika.BlockingConnection(pika.ConnectionParameters(
-            host=rabbit_mq_endpoint,
+            host=url.hostname,
+            port=url.port,
+            virtual_host=url.path,
             credentials=creds,
+            ssl_options=pika.SSLOptions(),
             heartbeat=30,
             blocked_connection_timeout=300,
         ))

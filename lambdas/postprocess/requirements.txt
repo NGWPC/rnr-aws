@@ -1,3 +1,4 @@
+fastparquet==2024.11.0
 pandas==2.3.2
-pyarrow==21.0.0
+netcdf==1.7.2
 xarray==2025.9.0

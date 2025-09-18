@@ -20,6 +20,7 @@ RUN ln -s /usr/lib64/gfortran/modules/netcdf.mod /usr/include/openmpi-x86_64/net
 # Create venv and set environment to use it
 RUN uv venv --python 3.11
 ENV PATH="/t-route/.venv/bin:$PATH"
+ENV UV_PROJECT_ENVIRONMENT="/t-route/.venv"
 
 # Install the main package in development mode
 RUN uv pip install -e .
@@ -29,6 +30,6 @@ RUN ./compiler.sh no-e --uv
 
 # Install the troute-rnr package specifically
 WORKDIR "/t-route/src/troute-rnr"
-RUN uv sync --extra iac
+RUN uv pip install -e '.[iac]'
 
 CMD ["bash", "-c", "uv run python main.py --iac"]

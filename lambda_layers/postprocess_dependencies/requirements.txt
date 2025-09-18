@@ -1,4 +1,3 @@
 pandas==2.3.2
 netcdf4==1.7.2
 xarray==2025.07.1
-pyarrow==21.0.0

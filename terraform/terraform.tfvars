@@ -8,8 +8,9 @@ environment         = "test"
 team_name           = "EDFS"
 
 # --- Existing Network Details ---
-vpc_name            = "Test-Main"
-subnet_name_pattern = "Test-App*"
+vpc_name                = "Test-Main"
+subnet_name_pattern     = "Test-App*"
+rabbitmq_console_cidr   = "10.0.0.0/8"
 
 # --- Application Image and Code ---
 # This would typically be passed in from a CI/CD pipeline

@@ -16,3 +16,8 @@ output "rabbitmq_broker_id" {
   description = "The ID of the Amazon MQ for RabbitMQ broker."
   value       = module.messaging.rabbitmq_broker_id
 }
+
+output "rabbitmq_web_console_url" {
+  description = "The Amazon RabbitMQ web console URL."
+  value       = module.messaging.rabbitmq_web_console_url
+}

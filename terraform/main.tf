@@ -49,9 +49,10 @@ module "iam_roles" {
 module "security_groups" {
   source = "./modules/security_groups"
 
-  app_name    = var.app_name
-  environment = var.environment
-  vpc_id      = data.aws_vpc.existing.id
+  app_name              = var.app_name
+  environment           = var.environment
+  vpc_id                = data.aws_vpc.existing.id
+  rabbitmq_console_cidr = var.rabbitmq_console_cidr
 }
 
 module "data_stores" {

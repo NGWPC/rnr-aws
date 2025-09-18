@@ -73,6 +73,14 @@ resource "aws_security_group" "rabbitmq" {
     security_groups = [aws_security_group.lambda.id, aws_security_group.fargate.id]
   }
 
+  # Allow inbound HTTPS traffic to RabbitMQ management console from specified CIDR
+  ingress { 
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [var.rabbitmq_console_cidr]
+  }
+
   tags = {
     Name        = "${var.app_name}-${var.environment}-rabbitmq-sg"
     Environment = var.environment

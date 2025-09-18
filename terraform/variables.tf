@@ -32,6 +32,11 @@ variable "subnet_name_pattern" {
   type        = string
 }
 
+variable "rabbitmq_console_cidr" {
+  description = "The CIDR block allowed to access the RabbitMQ web management console."
+  type        = string
+}
+
 # --- Application Configuration ---
 variable "docker_image_uri" {
   description = "The full URI of the public Docker image on ghcr.io (e.g., 'ghcr.io/user/repo:tag')."

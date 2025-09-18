@@ -13,3 +13,7 @@ variable "vpc_id" {
   type        = string
 }
 
+variable "rabbitmq_console_cidr" {
+  description = "The CIDR block allowed to access the RabbitMQ web management console."
+  type        = string
+}

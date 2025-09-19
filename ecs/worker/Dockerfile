@@ -32,4 +32,4 @@ RUN ./compiler.sh no-e --uv
 WORKDIR "/t-route/src/troute-rnr"
 RUN uv pip install -e '.[iac]'
 
-CMD ["bash", "-c", "uv run python main.py --iac"]
+CMD ["bash", "-c", "uv run python main.py --iac --debug"]

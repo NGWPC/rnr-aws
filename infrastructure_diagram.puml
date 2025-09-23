@@ -9,6 +9,9 @@
 !includeurl AWSPUML/Compute/Lambda.puml
 !includeurl AWSPUML/Containers/Fargate.puml
 !includeurl AWSPUML/Storage/SimpleStorageService.puml
+!includeurl AWSPUML/ManagementGovernance/CloudWatch.puml
+!includeurl AWSPUML/ManagementGovernance/ApplicationAutoScaling2.puml
+
 
 title RnR AWS Infrastructure Architecture
 skinparam linetype ortho
@@ -23,8 +26,12 @@ package "RnR AWS Infrastructure" {
   cloud "AWS Cloud" {
     EventBridge(producer_scheduler, "EventBridge Scheduler", "Triggers the Producer on a schedule (5 min)")
     EventBridge(postprocess_scheduler, "EventBridge Scheduler", "Triggers the Post Process on a schedule (10 min)")
+    EventBridge(autoscaler_scheduler, "EventBridge Scheduler", "Triggers the Autoscaler (1 min)")
 
     SecretsManager(secrets, "Secrets Manager", "Stores RabbitMQ credentials")
+    CloudWatch(cw_alarms, "CloudWatch Alarms", "Monitors Backlog & MessageCount")
+    ApplicationAutoScaling2(app_scaling, "Application Auto Scaling", "Adjusts ECS Task count")
+
 
     rectangle "VPC" <<vpc>> {
       MQ(rabbitmq, "Amazon MQ (RabbitMQ)", "Message queue for processing tasks")
@@ -33,6 +40,7 @@ package "RnR AWS Infrastructure" {
       Lambda(producer_lambda, "Producer Lambda", "Fetches data, checks cache, and queues messages")
       Fargate(fargate_worker, "ECS Fargate Worker", "T-Route")
       Lambda(postproc_lambda, "Post-Process Lambda", "Performs final actions on output")
+      Lambda(autoscaler_lambda, "Autoscaler Lambda", "Calculates backlog per task")
     }
 
     SimpleStorageService(bucket, "S3 Bucket", "Object Storage")
@@ -46,12 +54,14 @@ rectangle "External APIs" {
 
 ' --- Relationships and Data Flow ---
 legend top right
-  |= Flow            |= Color   |
-  | Producer         | <#blue>  |
-  | Worker (T-Route) | <#green> |
-  | Post Process     | <#purple>|
+  |= Flow           |= Color   |
+  | Producer         | <#blue>   |
+  | Worker (T-Route) | <#green>  |
+  | Post Process     | <#purple> |
+  | Autoscaling      | <#orange> |
 endlegend
 
+' Producer Flow
 producer_scheduler --> producer_lambda : 1. Triggers (cron)
 producer_lambda -[#blue]-> weather_api : "2. Fetches data"
 producer_lambda -[#blue]-> nwps_api : "2. Fetches data"
@@ -59,13 +69,24 @@ producer_lambda -[#blue]-> redis : 3. Checks for existing data
 producer_lambda -[#blue]-> rabbitmq : 4. Publishes message
 producer_lambda .[#blue].> secrets : Reads credentials
 
+' Worker Flow
 fargate_worker -[#green]-> rabbitmq : 5. Consumes message
 fargate_worker -[#green]-> bucket : 6. Reads domain data
 fargate_worker -[#green]-> bucket : 7. Writes results
 fargate_worker .[#green].> secrets : Reads credentials
 
+' Post-Processing Flow
 postprocess_scheduler --> postproc_lambda : 8. Triggers (cron)
 postproc_lambda -[#purple]-> bucket : 9. Processes output data
 postproc_lambda -[#purple]-> bucket : 10. Reads domain data
+
+' Autoscaling Flow
+autoscaler_scheduler -[#orange]-> autoscaler_lambda : A. Triggers (cron)
+autoscaler_lambda -[#orange]-> rabbitmq : "B. Gets MessageCount metric via CloudWatch"
+autoscaler_lambda -[#orange]-> fargate_worker : "C. Gets Running Task count via ECS API"
+autoscaler_lambda -[#orange]-> cw_alarms : "D. Publishes BacklogPerTask metric"
+cw_alarms -[#orange]-> app_scaling : "E. Triggers scaling policy"
+app_scaling -[#orange]-> fargate_worker : "F. Adjusts task count"
+
 
 @enduml

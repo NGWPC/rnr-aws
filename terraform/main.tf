@@ -92,11 +92,13 @@ module "application" {
     fargate_cpu                 = var.fargate_cpu
     fargate_memory              = var.fargate_memory
     fargate_initial_task_count  = var.fargate_initial_task_count
+    fargate_min_task_count      = var.fargate_min_task_count
     fargate_max_task_count      = var.fargate_max_task_count
   }
 
   lambda_code = {
     bucket_name               = var.lambda_code_bucket_name
+    autoscaler_s3_key         = var.lambda_autoscaler_zip_s3_key
     producer_s3_key           = var.lambda_producer_zip_s3_key
     post_process_s3_key       = var.lambda_postproc_zip_s3_key
     post_process_layer_s3_key = var.lambda_postproc_layer_zip_s3_key
@@ -111,8 +113,10 @@ module "application" {
   iam_roles = {
     ecs_task_execution  = module.iam_roles.ecs_task_execution_role_arn
     ecs_task            = module.iam_roles.ecs_task_role_arn
+    autoscaler_lambda   = module.iam_roles.lambda_autoscaler_role_arn
     producer_lambda     = module.iam_roles.lambda_producer_role_arn
     post_process_lambda = module.iam_roles.lambda_postproc_role_arn
+    scheduler_role      = module.iam_roles.scheduler_role_arn
   }
 
   service_dependencies = {
@@ -120,6 +124,7 @@ module "application" {
     app_output_s3_key         = var.app_output_s3_key
     hydrofabric_s3_key        = var.hydrofabric_s3_key
     postprocess_output_s3_key = var.postprocess_output_s3_key
+    rabbitmq_broker_name      = module.messaging.rabbitmq_broker_name
     rabbitmq_endpoint         = module.messaging.rabbitmq_endpoint
     rabbitmq_secret_arn       = module.messaging.rabbitmq_secret_arn
     elasticache_endpoint      = module.data_stores.elasticache_redis_endpoint
@@ -129,6 +134,22 @@ module "application" {
 # -----------------------------------------------------------------------------
 # Orchestration and Triggers
 # -----------------------------------------------------------------------------
+
+resource "aws_scheduler_schedule" "autoscaler_lambda_trigger" {
+  name       = "${var.app_name}-${var.environment}-autoscaler-trigger"
+  group_name = "default"
+
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  schedule_expression = "rate(2 minute)"
+
+  target {
+    arn      = module.application.lambda_autoscaler_arn
+    role_arn = module.iam_roles.scheduler_role_arn
+  }
+}
 
 resource "aws_scheduler_schedule" "producer_lambda_trigger" {
   name       = "${var.app_name}-${var.environment}-producer-trigger"

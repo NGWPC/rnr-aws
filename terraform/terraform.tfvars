@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-#  'Non-functional IaC test' Deployment
+#  'IaC test' Deployment
 # -----------------------------------------------------------------------------
 
 aws_region          = "us-east-1"
@@ -18,6 +18,7 @@ docker_image_uri                    = "ghcr.io/ngwpc/rnr-aws/troute-rnr:latest"
 lambda_code_bucket_name             = "ngwpc-infra-test"
 #lambda_producer_zip_s3_key         = "lambda-zips/data-producer/v1.0.0.zip"
 #lambda_postproc_zip_s3_key         = "lambda-zips/post-processor/v1.0.0.zip"
+lambda_autoscaler_zip_s3_key        = "lambda-zips/autoscaler.zip"
 lambda_producer_zip_s3_key          = "lambda-zips/producer.zip"
 lambda_postproc_zip_s3_key          = "lambda-zips/postprocess.zip"
 lambda_postproc_layer_zip_s3_key    = "lambda-zips/postprocess_dependencies.zip"
@@ -32,7 +33,7 @@ hydrofabric_s3_key          = "rnr/pi-7/parquet"
 fargate_cpu                 = 8192
 fargate_memory              = 16384
 fargate_initial_task_count  = 1
-fargate_max_task_count      = 2
+fargate_max_task_count      = 6
 
 # --- Schedule ---
 producer_schedule_expression = "rate(5 minutes)"

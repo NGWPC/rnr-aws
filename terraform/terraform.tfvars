@@ -29,8 +29,8 @@ postprocess_output_s3_key   = "rnr/pi-7/rnr-output"
 hydrofabric_s3_key          = "rnr/pi-7/parquet"
 
 # Fargate Compute Configuration
-fargate_cpu                 = 1024 # 8192
-fargate_memory              = 2048 # 16384
+fargate_cpu                 = 8192
+fargate_memory              = 16384
 fargate_initial_task_count  = 1
 fargate_max_task_count      = 2
 

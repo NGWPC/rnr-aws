@@ -162,7 +162,7 @@ resource "aws_lambda_function" "post_process" {
   handler = "post_process_lambda.lambda_handler"
   runtime = "python3.12"
   timeout = 300
-  memory_size = 256
+  memory_size = 8192
 
   layers = [aws_lambda_layer_version.post_process_deps.arn]
 

@@ -39,3 +39,8 @@ fargate_max_task_count      = 6
 producer_schedule_expression = "rate(5 minutes)"
 postprocess_schedule_expression = "rate(10 minutes)"
 
+# Example to force delete the created secrets in secrets manager without waiting for the scheduled deletion, should you want to quickly delete and recreate the infrastructure.
+# This should only be necessary in test environments where you want to quickly delete and recreate the infrastructure.
+# aws secretsmanager delete-secret --secret-id rnrtest/test/rabbitmq-credentials --force-delete-without-recovery --region us-east-1
+
+

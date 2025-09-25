@@ -236,7 +236,7 @@ resource "aws_iam_role_policy_attachment" "lambda_postproc_basic_execution" {
 
 # -----------------------------------------------------------------------------
 # EventBridge Scheduler Role
-# Needs permission to invoke the producer and post process Lambda functions.
+# Needs permission to invoke autoscaler, producer & post process Lambdas.
 # -----------------------------------------------------------------------------
 resource "aws_iam_role" "scheduler_role" {
   name               = "${var.app_name}-${var.environment}-scheduler-role"

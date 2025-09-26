@@ -48,6 +48,11 @@ variable "lambda_code_bucket_name" {
   type        = string
 }
 
+variable "lambda_autoscaler_zip_s3_key" {
+  description = "The S3 key for the autoscaler Lambda function's ZIP file."
+  type        = string
+}
+
 variable "lambda_producer_zip_s3_key" {
   description = "The S3 key for the producer Lambda function's ZIP file."
   type        = string
@@ -103,10 +108,16 @@ variable "fargate_initial_task_count" {
   default     = 1
 }
 
+variable "fargate_min_task_count" {
+  description = "The minimum number of Fargate tasks to scale in to."
+  type        = number
+  default     = 1
+}
+
 variable "fargate_max_task_count" {
   description = "The maximum number of Fargate tasks to scale out to."
   type        = number
-  default     = 2
+  default     = 6
 }
 
 # --- Messaging Configuration ---

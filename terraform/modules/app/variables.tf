@@ -20,6 +20,7 @@ variable "compute_config" {
     fargate_cpu                 = number
     fargate_memory              = number
     fargate_initial_task_count  = number
+    fargate_min_task_count      = number
     fargate_max_task_count      = number
   })
 }
@@ -31,6 +32,7 @@ variable "lambda_code" {
     producer_s3_key           = string
     post_process_s3_key       = string
     post_process_layer_s3_key = string
+    autoscaler_s3_key         = string
   })
 }
 
@@ -50,6 +52,7 @@ variable "iam_roles" {
     ecs_task            = string
     producer_lambda     = string
     post_process_lambda = string
+    autoscaler_lambda   = string
   })
 }
 
@@ -60,6 +63,7 @@ variable "service_dependencies" {
     app_output_s3_key         = string
     postprocess_output_s3_key = string
     hydrofabric_s3_key        = string
+    rabbitmq_broker_name      = string
     rabbitmq_endpoint         = string
     rabbitmq_secret_arn       = string
     elasticache_endpoint      = string

@@ -8,6 +8,11 @@ output "ecs_task_role_arn" {
   value       = aws_iam_role.ecs_task_role.arn
 }
 
+output "lambda_autoscaler_role_arn" {
+  description = "The ARN of the IAM role for the autoscaler Lambda."
+  value       = aws_iam_role.lambda_autoscaler_role.arn
+}
+
 output "lambda_producer_role_arn" {
   description = "The ARN of the IAM role for the data producer Lambda."
   value       = aws_iam_role.lambda_producer_role.arn
@@ -22,4 +27,3 @@ output "scheduler_role_arn" {
   description = "The ARN of the IAM role for the EventBridge Scheduler."
   value       = aws_iam_role.scheduler_role.arn
 }
-

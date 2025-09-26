@@ -14,6 +14,16 @@ resource "aws_cloudwatch_log_group" "fargate_log_group" {
   }
 }
 
+resource "aws_cloudwatch_log_group" "autoscaler_lambda_log_group" {
+  name              = "/aws/lambda/${var.app_name}-${var.environment}-ecs-autoscaler"
+  retention_in_days = 30
+
+  tags = {
+    Name        = "${var.app_name}-${var.environment}-autoscaler-lambda-log-group"
+    Environment = var.environment
+  }
+}
+
 resource "aws_cloudwatch_log_group" "producer_lambda_log_group" {
   name              = "/aws/lambda/${var.app_name}-${var.environment}-producer"
   retention_in_days = 30
@@ -108,6 +118,7 @@ resource "aws_ecs_service" "worker" {
 }
 
 # --- Lambda Functions ---
+# --- Producer Lambda Function ---
 
 resource "aws_lambda_function" "producer" {
   function_name = "${var.app_name}-${var.environment}-producer"
@@ -132,6 +143,7 @@ resource "aws_lambda_function" "producer" {
       REDIS_HOST          = var.service_dependencies.elasticache_endpoint
     }
   }
+
 
   tags = {
     Name        = "${var.app_name}-${var.environment}-producer-lambda"
@@ -162,6 +174,7 @@ resource "aws_lambda_function" "post_process" {
   handler = "post_process_lambda.lambda_handler"
   runtime = "python3.12"
   timeout = 300
+  memory_size = 8192
 
   layers = [aws_lambda_layer_version.post_process_deps.arn]
 
@@ -182,5 +195,116 @@ resource "aws_lambda_function" "post_process" {
   tags = {
     Name        = "${var.app_name}-${var.environment}-post-process-lambda"
     Environment = var.environment
+  }
+}
+
+# --- Autoscaler Lambda Function ---
+
+resource "aws_lambda_function" "autoscaler" {
+  function_name = "${var.app_name}-${var.environment}-ecs-autoscaler"
+  role          = var.iam_roles.autoscaler_lambda
+  handler       = "autoscaler_lambda.lambda_handler"
+  runtime       = "python3.12"
+  timeout       = 60
+
+  s3_bucket = var.lambda_code.bucket_name
+  s3_key    = var.lambda_code.autoscaler_s3_key
+
+  environment {
+    variables = {
+      ECS_CLUSTER_NAME = aws_ecs_cluster.main.name
+      ECS_SERVICE_NAME = aws_ecs_service.worker.name
+      MQ_BROKER_NAME   = var.service_dependencies.rabbitmq_broker_name
+      MQ_QUEUE_NAME    = "hml_files"
+    }
+  }
+
+  tags = {
+    Name        = "${var.app_name}-${var.environment}-ecs-autoscaler-lambda"
+    Environment = var.environment
+  }
+}
+
+# --- ECS Service Autoscaling ---
+
+resource "aws_appautoscaling_target" "ecs_target" {
+  max_capacity       = var.compute_config.fargate_max_task_count
+  min_capacity       = var.compute_config.fargate_min_task_count
+  resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.worker.name}"
+  scalable_dimension = "ecs:service:DesiredCount"
+  service_namespace  = "ecs"
+}
+
+resource "aws_cloudwatch_metric_alarm" "scale_up_alarm" {
+  alarm_name          = "${var.app_name}-${var.environment}-scale-up"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "BacklogPerTask"
+  namespace           = "ECS/Service/RabbitMQ"
+  period              = "60"
+  statistic           = "Average"
+  threshold           = "100" # Scale up when backlog per task is >= 100
+
+  dimensions = {
+    ClusterName = aws_ecs_cluster.main.name
+    ServiceName = aws_ecs_service.worker.name
+  }
+
+  alarm_actions = [aws_appautoscaling_policy.scale_up.arn]
+}
+
+resource "aws_appautoscaling_policy" "scale_up" {
+  name               = "${var.app_name}-${var.environment}-scale-up-policy"
+  policy_type        = "StepScaling"
+  resource_id        = aws_appautoscaling_target.ecs_target.resource_id
+  scalable_dimension = aws_appautoscaling_target.ecs_target.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.ecs_target.service_namespace
+
+  step_scaling_policy_configuration {
+    adjustment_type         = "ChangeInCapacity"
+    cooldown                = 60
+    metric_aggregation_type = "Average"
+
+    step_adjustment {
+      metric_interval_lower_bound = 0
+      scaling_adjustment          = 1
+    }
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "scale_down_alarm" {
+  alarm_name          = "${var.app_name}-${var.environment}-scale-down"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "BacklogPerTask"
+  namespace           = "ECS/Service/RabbitMQ"
+  period              = "60"
+  statistic           = "Average"
+  threshold           = "100" # Scale down when backlog per task is < 100
+
+  dimensions = {
+    ClusterName = aws_ecs_cluster.main.name
+    ServiceName = aws_ecs_service.worker.name
+  }
+
+  alarm_actions = [aws_appautoscaling_policy.scale_down.arn]
+}
+
+resource "aws_appautoscaling_policy" "scale_down" {
+  name               = "${var.app_name}-${var.environment}-scale-down-policy"
+  policy_type        = "StepScaling"
+  resource_id        = aws_appautoscaling_target.ecs_target.resource_id
+  scalable_dimension = aws_appautoscaling_target.ecs_target.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.ecs_target.service_namespace
+
+  step_scaling_policy_configuration {
+    adjustment_type         = "ChangeInCapacity"
+    cooldown                = 120
+    metric_aggregation_type = "Average"
+
+    step_adjustment {
+      metric_interval_upper_bound = 0
+      scaling_adjustment          = -1
+    }
   }
 }

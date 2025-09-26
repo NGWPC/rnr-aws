@@ -3,6 +3,11 @@ output "ecs_service_name" {
   value       = aws_ecs_service.worker.name
 }
 
+output "lambda_autoscaler_arn" {
+  description = "The ARN of the autoscaler Lambda function."
+  value       = aws_lambda_function.autoscaler.arn
+}
+
 output "lambda_producer_arn" {
   description = "The ARN of the producer Lambda function."
   value       = aws_lambda_function.producer.arn

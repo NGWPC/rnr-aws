@@ -13,6 +13,11 @@ output "rabbitmq_broker_arn" {
   value       = aws_mq_broker.rabbitmq.arn
 }
 
+output "rabbitmq_broker_name" {
+  description = "The name of the RabbitMQ broker."
+  value       = aws_mq_broker.rabbitmq.broker_name
+}
+
 output "rabbitmq_secret_arn" {
   description = "The ARN of the Secrets Manager secret for RabbitMQ credentials."
   value       = aws_secretsmanager_secret.rabbitmq.arn

@@ -13,11 +13,9 @@ subnet_name_pattern     = "Test-App*"
 rabbitmq_console_cidr   = "10.0.0.0/8"
 
 # --- Application Image and Code ---
-# This would typically be passed in from a CI/CD pipeline
+# These values would typically be passed in from a CI/CD pipeline and be versioned.
 docker_image_uri                    = "ghcr.io/ngwpc/rnr-aws/troute-rnr:latest"        
 lambda_code_bucket_name             = "ngwpc-infra-test"
-#lambda_producer_zip_s3_key         = "lambda-zips/data-producer/v1.0.0.zip"
-#lambda_postproc_zip_s3_key         = "lambda-zips/post-processor/v1.0.0.zip"
 lambda_autoscaler_zip_s3_key        = "lambda-zips/autoscaler.zip"
 lambda_producer_zip_s3_key          = "lambda-zips/producer.zip"
 lambda_postproc_zip_s3_key          = "lambda-zips/postprocess.zip"
